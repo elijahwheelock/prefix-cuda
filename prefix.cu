@@ -2,6 +2,7 @@
 #include <math.h>
 #include <unistd.h>
 #include <errno.h>
+#define log2(n) log(n)/log(2)
 
 __global__ void short_prefix_sum(int *array, unsigned length, unsigned step) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -29,7 +30,7 @@ void short_prefix(int *host_array, unsigned length) {
 
 __global__ void long_prefix_upsweep(int *array, unsigned length, unsigned d) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    int p = (int) pow(2, d+1);
+    int p = 1 << (d+1);
     if ((i < length) && (0 == (i % p))) {
         array[i + p - 1] += array[i + p/2 - 1];
     }
@@ -38,7 +39,7 @@ __global__ void long_prefix_upsweep(int *array, unsigned length, unsigned d) {
 
 __global__ void long_prefix_downsweep(int *array, unsigned length, unsigned d) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    int p = (int) pow(2, d+1);
+    int p = 1 << (d+1);
     if ((i < length) && (0 == (i % p))) {
         int tmp = array[i + p/2 - 1];
         array[i + p/2 - 1] = array[i + p - 1];
@@ -52,9 +53,9 @@ void long_prefix(int *host_array, unsigned length) {
     int *device_array; cudaMalloc((void **) &device_array, array_size);
     cudaMemcpy(device_array, host_array, array_size, cudaMemcpyHostToDevice);
     
-    dim3 numBlocks(1);
+    dim3 numBlocks(length / 1024);
     dim3 threadsPerBlock(1024);
-    int  l = log(length)/log(2);
+    int  l = log2(length);
     for (int d=0; d < l; d++) {
         long_prefix_upsweep<<<numBlocks, threadsPerBlock>>>(device_array, length, d);
         cudaDeviceSynchronize();
@@ -69,10 +70,10 @@ void long_prefix(int *host_array, unsigned length) {
 }
 
 int main(int argc, char **argv){
-    int length;
+    int input_n;
     if (2 == argc) {
         errno = 0;
-        length = strtol(argv[1], NULL, 10);
+        input_n = strtol(argv[1], NULL, 10);
     }
     else {
         fprintf(stderr, "argument must be exactly one integer\n");
@@ -82,17 +83,29 @@ int main(int argc, char **argv){
         fprintf(stderr, "error %d: %s\n", errno, strerror(errno));
         return errno;
     }
+    int length = 1 << ((int) ceil(log2(input_n)));
+    printf("length: %d\n", length);
+    
     int array_size = length * sizeof(int);
     int *host_array = (int*) malloc(array_size);
     for (int i=0; i<length; ++i) {
-        host_array[i] = 1;
+        host_array[i] = 2;
     }
     
     long_prefix(host_array, length);
     
+    bool not_expected = false;
     for (int i=0; i<length; ++i) {
-        printf("%d\n", host_array[i]);
+        if (i != host_array[i]) {
+            not_expected = true;
+            break;
+        }
     }
+    if (not_expected) {
+        for (int i=0; i<length; ++i) {
+            printf("%d\n", host_array[i]);
+        }
+    } else { printf("success!\n"); }
     
     free(host_array);
 }
