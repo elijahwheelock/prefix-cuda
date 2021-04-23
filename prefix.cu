@@ -2,6 +2,7 @@
 #include <math.h>
 #include <unistd.h>
 #include <errno.h>
+#include <assert.h>
 #define log2(n) log(n)/log(2)
 
 __global__ void short_prefix_sum(int *array, unsigned length, unsigned step) {
@@ -50,8 +51,9 @@ __global__ void long_prefix_downsweep(int *array, unsigned length, unsigned d) {
 
 void long_prefix(int *host_array, unsigned length) {
     int array_size = length * sizeof(int);
-    int *device_array; cudaMalloc((void **) &device_array, array_size);
-    cudaMemcpy(device_array, host_array, array_size, cudaMemcpyHostToDevice);
+    int *device_array; 
+    assert(cudaSuccess == cudaMalloc((void **) &device_array, array_size));
+    assert(cudaSuccess == cudaMemcpy(device_array, host_array, array_size, cudaMemcpyHostToDevice));
     
     dim3 numBlocks(length / 1024);
     dim3 threadsPerBlock(1024);
@@ -65,7 +67,7 @@ void long_prefix(int *host_array, unsigned length) {
         cudaDeviceSynchronize();
     }
     
-    cudaMemcpy(host_array, device_array, array_size, cudaMemcpyDeviceToHost);
+    assert(cudaSuccess == cudaMemcpy(host_array, device_array, array_size, cudaMemcpyDeviceToHost));
     cudaFree(device_array);
 }
 
@@ -87,7 +89,9 @@ int main(int argc, char **argv){
     printf("length: %d\n", length);
     
     int array_size = length * sizeof(int);
-    int *host_array = (int*) malloc(array_size);
+    int *host_array;
+    assert(NULL != (host_array = (int*) malloc(array_size)));
+    
     for (int i=0; i<length; ++i) {
         host_array[i] = 1;
     }
