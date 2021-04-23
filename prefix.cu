@@ -5,30 +5,6 @@
 #include <assert.h>
 #define log2(n) log(n)/log(2)
 
-__global__ void short_prefix_sum(int *array, unsigned length, unsigned step) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if ((i < length) && (i >= step)) {
-        array[i] += array[i - step];
-    }
-    __syncthreads();
-}
-
-void short_prefix(int *host_array, unsigned length) {
-    int array_size = length * sizeof(int);
-    int *device_array; cudaMalloc((void **) &device_array, array_size);
-    cudaMemcpy(device_array, host_array, array_size, cudaMemcpyHostToDevice);
-    
-    dim3 numBlocks( length );
-    dim3 threadsPerBlock(1);
-    for (unsigned step=1; step<length; step<<=1) {
-        short_prefix_sum<<<numBlocks, threadsPerBlock>>>(device_array, length, step);
-        cudaDeviceSynchronize();
-    }
-    
-    cudaMemcpy(host_array, device_array, array_size, cudaMemcpyDeviceToHost);
-    cudaFree(device_array);
-}
-
 __global__ void long_prefix_upsweep(int *array, unsigned length, unsigned d) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int p = 1 << (d+1);
