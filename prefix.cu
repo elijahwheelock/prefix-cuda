@@ -83,13 +83,13 @@ int main(int argc, char **argv){
         fprintf(stderr, "error %d: %s\n", errno, strerror(errno));
         return errno;
     }
-    int length = 1 << ((int) ceil(log2(input_n)));
+    int length = 1 << input_n;
     printf("length: %d\n", length);
     
     int array_size = length * sizeof(int);
     int *host_array = (int*) malloc(array_size);
     for (int i=0; i<length; ++i) {
-        host_array[i] = 2;
+        host_array[i] = 1;
     }
     
     long_prefix(host_array, length);
@@ -103,8 +103,9 @@ int main(int argc, char **argv){
     }
     if (not_expected) {
         for (int i=0; i<length; ++i) {
-            printf("%d\n", host_array[i]);
+            printf("%d ", host_array[i]);
         }
+        printf("failure!\n");
     } else { printf("success!\n"); }
     
     free(host_array);
