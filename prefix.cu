@@ -4,6 +4,13 @@
 #include <errno.h>
 #include <assert.h>
 #define log2(n) log(n)/log(2)
+#ifdef synchronize
+    #define device_sync() __syncthreads()
+    #define host_sync() cudaDeviceSynchronize()
+#else
+    #define device_sync() 
+    #define host_sync()
+#endif
 
 __global__ void long_prefix_upsweep(int *array, unsigned length, unsigned d) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -11,7 +18,7 @@ __global__ void long_prefix_upsweep(int *array, unsigned length, unsigned d) {
     if ((i < length) && (0 == (i % p))) {
         array[i + p - 1] += array[i + p/2 - 1];
     }
-    __syncthreads();
+    device_sync();
 }
 
 __global__ void long_prefix_downsweep(int *array, unsigned length, unsigned d) {
@@ -22,7 +29,7 @@ __global__ void long_prefix_downsweep(int *array, unsigned length, unsigned d) {
         array[i + p/2 - 1] = array[i + p - 1];
         array[i + p - 1] = tmp + array[i + p/2 - 1];
     }
-    __syncthreads();
+    device_sync();
 }
 
 void long_prefix(int *host_array, unsigned length) {
@@ -33,14 +40,14 @@ void long_prefix(int *host_array, unsigned length) {
     
     dim3 numBlocks(length / 1024);
     dim3 threadsPerBlock(1024);
-    int  l = log2(length);
+    int l = log2(length);
     for (int d=0; d < l; d++) {
         long_prefix_upsweep<<<numBlocks, threadsPerBlock>>>(device_array, length, d);
-        cudaDeviceSynchronize();
+        host_sync();
     }
     for (int d=l; d >= 0; d--) {
         long_prefix_downsweep<<<numBlocks, threadsPerBlock>>>(device_array, length, d);
-        cudaDeviceSynchronize();
+        host_sync();
     }
     
     assert(cudaSuccess == cudaMemcpy(host_array, device_array, array_size, cudaMemcpyDeviceToHost));
@@ -82,9 +89,9 @@ int main(int argc, char **argv){
         }
     }
     if (not_expected) {
-        for (int i=0; i<length; ++i) {
-            printf("%d ", host_array[i]);
-        }
+     // for (int i=0; i<length; ++i) {
+     //     printf("%d ", host_array[i]);
+     // }
         printf("failure!\n");
     } else { printf("success!\n"); }
     
