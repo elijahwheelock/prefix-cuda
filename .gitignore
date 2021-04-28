@@ -1,6 +1,9 @@
 *.pdf
 prefix
 todo
+vgcore.*
+*.o
+*.so
 *.i
 *.ii
 *.gpu
