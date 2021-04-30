@@ -34,7 +34,6 @@ void prefix(int *host_array, unsigned length) {
     assert(NULL != (device_array = (int *) malloc(array_size)));
     memcpy(device_array, host_array, array_size);
      
-    int l = LOG2(length);
     unsigned stride = 2;
     for (; stride<=length; stride<<=1) {
         prefix_upsweep(device_array, length, stride);
