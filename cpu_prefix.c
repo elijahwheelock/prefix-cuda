@@ -1,10 +1,11 @@
-#include <stdio.h>
-#include <math.h>
-#include <unistd.h>
-#include <errno.h>
-#include <assert.h>
-#include <string.h>
-#define LOG2(n) log(n)/log(2)
+#include <stdlib.h>  // malloc, free
+#include <stdbool.h> // true, false
+#include <stdio.h>   // printf
+#include <errno.h>   // errno
+#include <assert.h>  // assert
+#include <stdint.h>  // uint64_t
+#include <string.h>  // memcpy
+#include <time.h>    // performance testing
 
 void print_array(int *array, unsigned length) {
     for (int i=0; i<length; i++) {
@@ -34,6 +35,9 @@ void prefix(int *host_array, unsigned length) {
     assert(NULL != (device_array = (int *) malloc(array_size)));
     memcpy(device_array, host_array, array_size);
      
+    struct timespec t0, t1;
+    clock_gettime(CLOCK_MONOTONIC, &t0);
+    
     unsigned stride = 2;
     for (; stride<=length; stride<<=1) {
         prefix_upsweep(device_array, length, stride);
@@ -43,6 +47,11 @@ void prefix(int *host_array, unsigned length) {
     for (stride>>=1; stride >= 1; stride>>=1) {
         prefix_downsweep(device_array, length, stride);
     }
+    
+    clock_gettime(CLOCK_MONOTONIC, &t1);
+    
+    double elapsed_time = ((double) (t1.tv_sec - t0.tv_sec)) + ((double) (t1.tv_nsec - t0.tv_nsec))/1000000000;
+    printf("time: %f\n", elapsed_time);
      
     memcpy(host_array, device_array, array_size);
     free(device_array);
@@ -63,7 +72,7 @@ int main(int argc, char **argv){
         return errno;
     }
     int length = 1 << input_n;
-    //printf("length: %d\n", length);
+  //printf("length: %d\n", length);
      
     int array_size = length * sizeof(int);
     int *host_array;
@@ -74,7 +83,13 @@ int main(int argc, char **argv){
     }
   //print_array(host_array, length);
      
+    struct timespec t0, t1;
+    clock_gettime(CLOCK_MONOTONIC, &t0);
     prefix(host_array, length);
+    clock_gettime(CLOCK_MONOTONIC, &t1);
+    
+    double elapsed_time = ((double) (t1.tv_sec - t0.tv_sec)) + ((double) (t1.tv_nsec - t0.tv_nsec))/1000000000;
+    printf("time: %f\n", elapsed_time);
      
     bool not_expected = false;
     for (int i=0; i<length; ++i) {
